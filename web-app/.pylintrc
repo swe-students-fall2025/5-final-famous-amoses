@@ -8,4 +8,8 @@ disable=
     missing-class-docstring,
     missing-function-docstring,
     too-few-public-methods,
-    invalid-name
+    invalid-name,
+    broad-exception-caught
+
+[FORMAT]
+max-line-length=320

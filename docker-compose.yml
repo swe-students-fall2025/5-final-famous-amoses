@@ -1,21 +1,24 @@
 version: "3.9"
 
 services:
-  database:
-    build: ./database
+  mongo:
+    image: mongo:7
+    container_name: mongo
+    restart: always
     ports:
       - "27017:27017"
-    # env_file:
-    #   - ./database/.env
     volumes:
       - mongo-data:/data/db
 
   web:
     build: ./web-app
+    container_name: web-app
+    depends_on:
+      - mongo
+    env_file:
+    - ./web-app/.env
     ports:
       - "5000:5000"
-    depends_on:
-      - database
 
 volumes:
   mongo-data:
