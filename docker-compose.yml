@@ -16,9 +16,9 @@ services:
     depends_on:
       - mongo
     env_file:
-    - ./web-app/.env
+      - ./web-app/.env
     ports:
-      - "5000:5000"
+      - "5001:5000"
 
 volumes:
   mongo-data:

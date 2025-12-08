@@ -325,7 +325,77 @@ COURSES = [
         "prerequisites": [],
         "description": "Students work on an individual basis under the supervision of a full-time faculty member. Does not satisfy the major elective requirement. [Requires permission of the department and specific GPA requirements.]",
         "semester_offered": ["Spring"],
-    },
+    },{
+        "course_code": "MATH-UA.0120",
+        "title": "Discrete Mathematics",
+        "type": "Math Course",
+        "subject": "MATH-UA",
+        "difficulty": 5,
+        "credits": "4",
+        "prerequisites": [],
+        "description": "This course is a one-semester introduction to discrete mathematics with an emphasis on the understanding, composition and critiquing of mathematical proofs.",
+        "semester_offered": ["Spring","Fall","Summer"],
+    },{
+    "course_code": "MATH-UA.0121",
+    "title": "Calculus I",
+    "type": "Math Course",
+    "subject": "MATH-UA",
+    "difficulty": 3,
+    "credits": "4",
+    "prerequisites": [],
+    "description": "Derivatives, antiderivatives, and integrals of functions of one real variable. Trigonometric, inverse trigonometric, logarithmic and exponential functions."
+    " Applications, including graphing, maximizing and minimizing functions. Areas and volumes.",
+    "semester_offered": ["Fall", "Spring", "Summer"]
+},{
+    "course_code": "MATH-UA.0131",
+    "title": "Math For Economics I",
+    "type": "Math Course",
+    "subject": "MATH-UA",
+    "difficulty": 3,
+    "credits": "4",
+    "prerequisites": [],
+    "description": "This course is only open to Economics Majors and prospective Economics Majors. Elements of calculus and linear algebra are "
+    "important to the study of economics.",
+    "semester_offered": ["Fall", "Spring", "Summer"]
+},{
+    "course_code": "MATH-UA.0122",
+    "title": "Calculus II",
+    "type": "Math Course",
+    "subject": "MATH-UA",
+    "difficulty": 4,
+    "credits": "4",
+    "prerequisites": [],
+    "description": "Techniques of integration. Further applications. Plane analytic geometry. Polar coordinates and parametric equations. Infinite series, including power series.",
+    "semest,er_offered": ["Fall", "Spring", "Summer"]
+},{
+    "course_code": "MATH-UA.0140",
+    "title": "Linear Algebra",
+    "type": "Math Course",
+    "subject": "MATH-UA",
+    "difficulty": 3,
+    "credits": "4",
+    "prerequisites": [],
+    "description": "Linear algebra is the study of structure-preserving operators on sets (linear operators on vector spaces). Topics include systems of linear equations,"
+    " matrix computation and classification, vector spaces, linear transformations and eigenvalues, length and orthogonality, and orthogonal projections for optimization.",
+    "semester_offered": ["Fall", "Spring", "Summer"]
+},{
+    "course_code": "MATH-UA.0185",
+    "title": "Probability and Statistics",
+    "type": "Math Course",
+    "subject": "MATH-UA",
+    "difficulty": 4,
+    "credits": "4",
+    "prerequisites": [],
+    "description": "A combination of Theory of Probability and Mathematical Statistics at an elementary level. Probability topics include mathematical treatment of chance,"
+    " combinatorics, binomial, Poisson, and Gaussian distributions, law of large numbers, and applications such as coin-tossing or radioactive decay.",
+    "semester_offered": ["Fall", "Spring"]
+}
+
+
+
+
+
+
 ]
 
 
