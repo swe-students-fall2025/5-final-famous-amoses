@@ -187,3 +187,103 @@ progress, and the course's role in their academic journey."""
     
     return message
 
+
+def generate_course_recommendations(
+    student_info: Dict,
+    available_courses: List[Dict],
+    major_requirements: Optional[Dict],
+    major_progress: Optional[Dict],
+    remaining_requirements: Optional[Dict],
+    semester_info: Dict,
+) -> Optional[List[Dict]]:
+    """
+    Generate course recommendations using OpenAI GPT-4.
+
+    Args:
+        student_info: Dictionary with student profile (name, major, year, completed_courses,
+                     interests, career_path, side_interests)
+        available_courses: List of available course dictionaries (already filtered)
+        major_requirements: Major requirements dictionary (from major_requirements.py)
+        major_progress: Major progress dictionary (from get_major_progress)
+        remaining_requirements: Remaining requirements dictionary (from get_remaining_requirements)
+        semester_info: Dictionary with semester name and target credits
+
+    Returns:
+        List of recommended course dictionaries with structure:
+        [{"course_code": "...", "title": "...", "credits": 4, "reasoning": "..."}, ...]
+        Returns None if API call fails or response is invalid
+    """
+    try:
+        # Build messages
+        system_message = _build_system_message()
+        user_message = _build_user_message(
+            student_info,
+            available_courses,
+            major_requirements,
+            major_progress,
+            remaining_requirements,
+            semester_info,
+        )
+
+        # Call OpenAI API
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": user_message},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.7,  # Balance between creativity and consistency
+        )
+
+        # Extract response content
+        response_content = response.choices[0].message.content
+        if not response_content:
+            return None
+
+        # Parse JSON response
+        try:
+            response_data = json.loads(response_content)
+        except json.JSONDecodeError as e:
+            # Try to extract JSON from markdown code blocks if present
+            if "```json" in response_content:
+                json_start = response_content.find("```json") + 7
+                json_end = response_content.find("```", json_start)
+                if json_end != -1:
+                    response_content = response_content[json_start:json_end].strip()
+                    response_data = json.loads(response_content)
+                else:
+                    raise ValueError("Invalid JSON response format") from e
+            elif "```" in response_content:
+                # Try to extract from generic code block
+                json_start = response_content.find("```") + 3
+                json_end = response_content.find("```", json_start)
+                if json_end != -1:
+                    response_content = response_content[json_start:json_end].strip()
+                    response_data = json.loads(response_content)
+                else:
+                    raise ValueError("Invalid JSON response format") from e
+            else:
+                raise ValueError(f"Failed to parse JSON response: {e}") from e
+
+        # Extract courses from response
+        courses = response_data.get("courses", [])
+        
+        # Validate course structure
+        validated_courses = []
+        for course in courses:
+            if isinstance(course, dict) and "course_code" in course:
+                validated_courses.append({
+                    "course_code": course.get("course_code", ""),
+                    "title": course.get("title", ""),
+                    "credits": course.get("credits", 0),
+                    "reasoning": course.get("reasoning", ""),
+                })
+        
+        return validated_courses if validated_courses else None
+
+    except Exception as e:
+        # Log error (in production, use proper logging)
+        print(f"Error generating course recommendations: {e}")
+        return None
+
