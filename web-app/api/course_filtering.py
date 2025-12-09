@@ -10,7 +10,12 @@ from typing import Dict, List, Optional
 
 from pymongo import MongoClient
 
-from api.major_requirements import get_math_course_info, is_math_course
+from api.major_requirements import (
+    get_math_course_info,
+    get_major_requirements,
+    is_math_course,
+    MATH_COURSES,
+)
 
 # Database connection (following pattern from user_model.py)
 MONGO_URI = os.getenv("MONGO_URI")
@@ -178,3 +183,190 @@ def filter_by_prerequisites(
         for course in courses
         if check_prerequisites_met(course, completed_courses, all_courses)
     ]
+
+
+def _extract_semester_type(semester_name: str) -> Optional[str]:
+    """
+    Extract semester type (Fall, Spring, Summer) from semester name.
+
+    Args:
+        semester_name: Semester name like "Freshman Fall", "Sophomore Spring", etc.
+
+    Returns:
+        "Fall", "Spring", "Summer", or None if not found
+    """
+    semester_name_lower = semester_name.lower()
+
+    if "fall" in semester_name_lower:
+        return "Fall"
+    elif "spring" in semester_name_lower:
+        return "Spring"
+    elif "summer" in semester_name_lower:
+        return "Summer"
+
+    return None
+
+
+def filter_by_semester_availability(
+    courses: List[Dict], target_semester: str
+) -> List[Dict]:
+    """
+    Filter courses to only those offered in the target semester.
+
+    Args:
+        courses: List of course dictionaries to filter
+        target_semester: Semester name like "Freshman Fall", "Sophomore Spring", etc.
+
+    Returns:
+        List of courses offered in the target semester
+    """
+    semester_type = _extract_semester_type(target_semester)
+
+    if not semester_type:
+        # If we can't extract semester type, return all courses
+        return courses
+
+    filtered_courses = []
+    for course in courses:
+        semesters_offered = course.get("semester_offered", [])
+        if semester_type in semesters_offered:
+            filtered_courses.append(course)
+
+    return filtered_courses
+
+
+def _get_math_courses_for_semester(
+    target_semester: str, major_name: Optional[str] = None
+) -> List[Dict]:
+    """
+    Get math courses that are available in the target semester.
+
+    Checks major requirements for math courses with semester information,
+    or falls back to all math courses if no major is specified.
+
+    Args:
+        target_semester: Semester name like "Freshman Fall"
+        major_name: Optional major name to get major-specific math courses
+
+    Returns:
+        List of math course dictionaries normalized to match DB course structure
+    """
+    semester_type = _extract_semester_type(target_semester)
+    if not semester_type:
+        return []
+
+    math_courses = []
+
+    # If major is specified, check major requirements for math courses
+    if major_name:
+        major_reqs = get_major_requirements(major_name)
+        if major_reqs:
+            # Check core requirements for math courses
+            core_reqs = major_reqs.get("core_requirements", {}).get("courses", [])
+            for req in core_reqs:
+                if req.get("is_math_course") and req.get("course_code"):
+                    semesters_offered = req.get("semesters_offered", [])
+                    if semester_type in semesters_offered:
+                        math_course = get_math_course_info(req["course_code"])
+                        if math_course:
+                            normalized = math_course.copy()
+                            normalized["title"] = normalized.pop("name", "")
+                            normalized["semester_offered"] = semesters_offered
+                            normalized.setdefault(
+                                "prerequisites", req.get("prerequisites", [])
+                            )
+                            normalized.setdefault("credits", 4)
+                            normalized.setdefault("difficulty", 0)
+                            normalized.setdefault("description", "")
+                            math_courses.append(normalized)
+
+            # Check elective substitutions for math courses
+            elective_reqs = major_reqs.get("elective_requirements", {})
+            substitutions = elective_reqs.get("substitutions", {})
+            if substitutions.get("allowed", False):
+                substitution_courses = substitutions.get("courses", [])
+                for sub_course in substitution_courses:
+                    if sub_course.get("is_math_course") and sub_course.get(
+                        "course_code"
+                    ):
+                        semesters_offered = sub_course.get("semesters_offered", [])
+                        if semester_type in semesters_offered:
+                            math_course = get_math_course_info(
+                                sub_course["course_code"]
+                            )
+                            if math_course:
+                                normalized = math_course.copy()
+                                normalized["title"] = normalized.pop("name", "")
+                                normalized["semester_offered"] = semesters_offered
+                                normalized.setdefault("prerequisites", [])
+                                normalized.setdefault("credits", 4)
+                                normalized.setdefault("difficulty", 0)
+                                normalized.setdefault("description", "")
+                                math_courses.append(normalized)
+
+    return math_courses
+
+
+def get_available_courses_for_semester(
+    completed_courses: List[str],
+    target_semester: str,
+    all_courses: Optional[List[Dict]] = None,
+    major_name: Optional[str] = None,
+) -> List[Dict]:
+    """
+    Get all available courses for a semester after applying all filters.
+
+    This is the main orchestrator function that combines:
+    1. Filtering out completed courses
+    2. Filtering by prerequisites
+    3. Filtering by semester availability
+    4. Including applicable math courses
+
+    Args:
+        completed_courses: List of course codes the student has completed
+        target_semester: Semester name like "Freshman Fall", "Sophomore Spring", etc.
+        all_courses: Optional list of all course dictionaries from database.
+                    If None, fetches from database.
+        major_name: Optional major name to include major-specific math courses
+
+    Returns:
+        Combined list of available courses (DB courses + math courses) that:
+        - Are not already completed
+        - Have prerequisites satisfied
+        - Are offered in the target semester
+    """
+    # Get all courses from DB if not provided
+    if all_courses is None:
+        all_courses = get_all_courses_from_db()
+
+    # Step 1: Filter out completed courses
+    available_courses = filter_completed_courses(all_courses, completed_courses)
+
+    # Step 2: Filter by prerequisites
+    available_courses = filter_by_prerequisites(
+        available_courses, completed_courses, all_courses
+    )
+
+    # Step 3: Filter by semester availability
+    available_courses = filter_by_semester_availability(
+        available_courses, target_semester
+    )
+
+    # Step 4: Get math courses for the semester (if major is specified)
+    math_courses = []
+    if major_name:
+        math_courses = _get_math_courses_for_semester(target_semester, major_name)
+
+        # Filter math courses: remove completed ones and check prerequisites
+        completed_set = set(completed_courses)
+        math_courses = [
+            course
+            for course in math_courses
+            if course.get("course_code") not in completed_set
+            and check_prerequisites_met(course, completed_courses, all_courses)
+        ]
+
+    # Step 5: Combine DB courses and math courses
+    all_available_courses = available_courses + math_courses
+
+    return all_available_courses
