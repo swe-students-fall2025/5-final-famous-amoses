@@ -305,3 +305,68 @@ def _get_math_courses_for_semester(
                                 math_courses.append(normalized)
 
     return math_courses
+
+
+def get_available_courses_for_semester(
+    completed_courses: List[str],
+    target_semester: str,
+    all_courses: Optional[List[Dict]] = None,
+    major_name: Optional[str] = None,
+) -> List[Dict]:
+    """
+    Get all available courses for a semester after applying all filters.
+
+    This is the main orchestrator function that combines:
+    1. Filtering out completed courses
+    2. Filtering by prerequisites
+    3. Filtering by semester availability
+    4. Including applicable math courses
+
+    Args:
+        completed_courses: List of course codes the student has completed
+        target_semester: Semester name like "Freshman Fall", "Sophomore Spring", etc.
+        all_courses: Optional list of all course dictionaries from database.
+                    If None, fetches from database.
+        major_name: Optional major name to include major-specific math courses
+
+    Returns:
+        Combined list of available courses (DB courses + math courses) that:
+        - Are not already completed
+        - Have prerequisites satisfied
+        - Are offered in the target semester
+    """
+    # Get all courses from DB if not provided
+    if all_courses is None:
+        all_courses = get_all_courses_from_db()
+
+    # Step 1: Filter out completed courses
+    available_courses = filter_completed_courses(all_courses, completed_courses)
+
+    # Step 2: Filter by prerequisites
+    available_courses = filter_by_prerequisites(
+        available_courses, completed_courses, all_courses
+    )
+
+    # Step 3: Filter by semester availability
+    available_courses = filter_by_semester_availability(
+        available_courses, target_semester
+    )
+
+    # Step 4: Get math courses for the semester (if major is specified)
+    math_courses = []
+    if major_name:
+        math_courses = _get_math_courses_for_semester(target_semester, major_name)
+
+        # Filter math courses: remove completed ones and check prerequisites
+        completed_set = set(completed_courses)
+        math_courses = [
+            course
+            for course in math_courses
+            if course.get("course_code") not in completed_set
+            and check_prerequisites_met(course, completed_courses, all_courses)
+        ]
+
+    # Step 5: Combine DB courses and math courses
+    all_available_courses = available_courses + math_courses
+
+    return all_available_courses
