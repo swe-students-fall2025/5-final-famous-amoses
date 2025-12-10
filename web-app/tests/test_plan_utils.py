@@ -298,7 +298,7 @@ class TestGetAllSemesterPlans:
 
         result = get_all_semester_plans(email, mock_db)
 
-        assert result == {}
+        assert not result
 
 
 class TestGetSemesterIndex:

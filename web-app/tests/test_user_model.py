@@ -10,6 +10,8 @@ import bcrypt
 from unittest.mock import patch, MagicMock
 from mongomock import MongoClient
 
+# pylint: disable=duplicate-code
+
 
 @pytest.fixture
 def mock_db():

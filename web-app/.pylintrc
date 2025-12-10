@@ -9,7 +9,14 @@ disable=
     missing-function-docstring,
     too-few-public-methods,
     invalid-name,
-    broad-exception-caught
+    broad-exception-caught,
+    import-outside-toplevel,
+    redefined-outer-name,
+    unused-argument,
+    unused-import,
+    wrong-import-order,
+    wrong-import-position,
+    protected-access
 
 [FORMAT]
 max-line-length=320

@@ -106,7 +106,7 @@ class TestSeedDb:
         """Test that seed_db inserts sample students."""
         from database.app_db import seed_db
 
-        result = seed_db(mock_db, environment="development")
+        seed_db(mock_db, environment="development")
 
         # Should have inserted students
         students_count = mock_db.students.count_documents({})
