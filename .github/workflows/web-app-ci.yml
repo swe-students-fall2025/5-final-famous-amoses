@@ -51,7 +51,6 @@ jobs:
   build-and-push:
     needs: build-and-test-web-app
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
 
     steps:
       - name: Check out repository
@@ -66,30 +65,18 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/web-app
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: ./web-app
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/web-app:latest
           cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/web-app:latest
           cache-to: type=inline
 
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
 
     steps:
       - name: Check out repository
@@ -106,7 +93,7 @@ jobs:
             # Pull the latest image
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/web-app:latest
             # Stop and remove old containers
-            docker-compose down || true
+            docker compose down || true
             # Create/update docker-compose.yml on the server
             IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/web-app:latest"
             cat > docker-compose.yml << EOF
@@ -137,4 +124,4 @@ jobs:
               mongo-data:
             EOF
             # Start the services
-            docker-compose up -d
+            docker compose up -d
