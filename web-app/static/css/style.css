@@ -95,6 +95,22 @@ main {
   background-color: #3a2366;
 }
 
+.logout-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background-color: #57068C;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.logout-btn:hover {
+  background-color: #6a1aa3;
+}
+
 /* Footer */
 footer {
   background-color: #57068c;

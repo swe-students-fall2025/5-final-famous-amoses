@@ -3,6 +3,9 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
+<!-- Logout button -->
+<a href="{{ url_for('login_page') }}" class="logout-btn">Logout</a>
+
 <section class="homepage">
     <h2>Welcome to the NYU CS and Math 4-year Course Planner</h2>
     <p>View your full 4-year plan so far or continue planning</p>
@@ -11,8 +14,8 @@
         <!-- View full plan button -->
         <a href="{{ url_for('fullplan') }}" class="btn">View Full Plan</a>
 
-        <!-- Edit next semester button -->
-        <a href="{{ url_for('editsemester') }}" class="btn primary">Generate First Semester</a>
+        <!-- Edit first semester button -->
+        <a href="{{ url_for('editsemester') }}?semester=0" class="btn primary">Generate First Semester</a>
     </div>
 </section>
 {% endblock %}

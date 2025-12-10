@@ -5,12 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}NYU CS & Math Course Planner{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+      .logo a {
+        text-decoration: none;
+        color: inherit; /* same color as surrounding text */
+      }
+      .logo a:hover {
+        color: inherit; /* no hover color change */
+      }
+    </style>
   </head>
   <body>
     <!-- Header -->
     <header>
       <div class="logo">
-        <h1>NYU CS & Math Course Planner</h1>
+        {% if request.endpoint not in ['login_page', 'signup_page'] %}
+          <h1><a href="{{ url_for('home') }}">NYU CS & Math Course Planner</a></h1>
+        {% else %}
+          <h1>NYU CS & Math Course Planner</h1>
+        {% endif %}
       </div>
       <nav>
       </nav>

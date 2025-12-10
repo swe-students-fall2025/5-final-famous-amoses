@@ -44,7 +44,7 @@
   }
 
   .auth-container h2 {
-    font-size: 2.2em; /* Slightly smaller heading */
+    font-size: 2.2em;
     margin-bottom: 20px;
   }
 
@@ -55,8 +55,11 @@
     justify-content: center;
   }
 
-  .auth-container input {
-    width: 240px; /* Slightly smaller */
+  /* Apply same styling to ALL text, email, and password inputs */
+  .auth-container input[type="text"],
+  .auth-container input[type="email"],
+  .auth-container input[type="password"] {
+    width: 240px;
     padding: 10px;
     font-size: 1em;
     border: 1px solid #ccc;
@@ -64,7 +67,7 @@
   }
 
   .auth-container button {
-    width: 260px; /* Slightly smaller */
+    width: 260px;
     padding: 10px;
     font-size: 1em;
     background-color: #57068C;
@@ -81,7 +84,7 @@
 
   .auth-container p {
     margin-top: 20px;
-    font-size: 1em; /* Keep normal size */
+    font-size: 1em;
   }
 
   .auth-container a {
