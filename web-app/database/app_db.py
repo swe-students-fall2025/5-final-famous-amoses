@@ -399,7 +399,7 @@ COURSES = [
     "credits": "4",
     "prerequisites": ["MATH-UA.0122"],
     "description": "Functions of several variables. Vectors in the plane and space. Partial derivatives with applications. Double and triple integrals. Spherical and"
-    " cylindrical coordinates. Surface and line integrals. Divergence, gradient, and curl. Theorem of Gauss and Stokes."
+    " cylindrical coordinates. Surface and line integrals. Divergence, gradient, and curl. Theorem of Gauss and Stokes.",
     "semester_offered": ["Fall", "Spring", "Summer"]
 },{
     "course_code": "MATH-UA.0126",
