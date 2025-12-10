@@ -14,12 +14,17 @@ from openai import OpenAI
 # Initialize OpenAI client
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
-    raise ValueError(
-        "OPENAI_API_KEY not set in environment variables. "
-        "Please set it in your .env file."
+    print("WARNING: OPENAI_API_KEY not set in environment variables.")
+    print(
+        "LLM recommendations will not work. Please set OPENAI_API_KEY in your .env file."
     )
-
-client = OpenAI(api_key=OPENAI_API_KEY)
+    client = None
+else:
+    try:
+        client = OpenAI(api_key=OPENAI_API_KEY)
+    except Exception as e:
+        print(f"ERROR: Failed to initialize OpenAI client: {e}")
+        client = None
 
 
 def _build_system_message() -> str:
@@ -60,10 +65,10 @@ def _format_course_for_prompt(course: Dict) -> str:
     prerequisites = course.get("prerequisites", [])
     description = course.get("description", "")
     semester_offered = course.get("semester_offered", [])
-    
+
     prereq_str = ", ".join(prerequisites) if prerequisites else "None"
     semester_str = ", ".join(semester_offered) if semester_offered else "Unknown"
-    
+
     return f"""  - {course_code}: {title}
     Credits: {credits} | Difficulty: {difficulty}/5
     Prerequisites: {prereq_str}
@@ -83,7 +88,7 @@ def _build_user_message(
     Build the user message with all context for course recommendations.
 
     Args:
-        student_info: Dictionary with student profile (name, major, year, completed_courses, 
+        student_info: Dictionary with student profile (name, major, year, completed_courses,
                      interests, career_path, side_interests)
         available_courses: List of available course dictionaries
         major_requirements: Major requirements dictionary (from major_requirements.py)
@@ -102,12 +107,12 @@ def _build_user_message(
     interests = student_info.get("interests", [])
     career_path = student_info.get("career_path", "")
     side_interests = student_info.get("side_interests", [])
-    
+
     # Semester info
     semester_name = semester_info.get("semester", "Unknown Semester")
     target_credits_min = semester_info.get("target_credits_min", 16)
     target_credits_max = semester_info.get("target_credits_max", 24)
-    
+
     message = f"""Please recommend 4-6 courses for {student_name} for {semester_name}.
 
 STUDENT PROFILE:
@@ -119,22 +124,26 @@ STUDENT PROFILE:
 - Completed Courses: {", ".join(completed_courses) if completed_courses else "None"}
 
 """
-    
+
     # Major requirements section
     if major_progress and "error" not in major_progress:
         progress_pct = major_progress.get("overall_progress", {}).get("percentage", 0)
         core_completed = major_progress.get("core_requirements", {}).get("count", 0)
         core_total = major_progress.get("core_requirements", {}).get("total", 0)
-        elective_completed = len(major_progress.get("elective_requirements", {}).get("completed", []))
-        elective_needed = major_progress.get("elective_requirements", {}).get("remaining_count", 0)
-        
+        elective_completed = len(
+            major_progress.get("elective_requirements", {}).get("completed", [])
+        )
+        elective_needed = major_progress.get("elective_requirements", {}).get(
+            "remaining_count", 0
+        )
+
         message += f"""MAJOR PROGRESS:
 - Overall Progress: {progress_pct}% complete
 - Core Requirements: {core_completed}/{core_total} completed
 - Electives: {elective_completed} completed, {elective_needed} still needed
 
 """
-    
+
     # Remaining requirements section
     if remaining_requirements and "error" not in remaining_requirements:
         remaining_core = remaining_requirements.get("remaining_core", [])
@@ -143,20 +152,22 @@ STUDENT PROFILE:
             for req in remaining_core[:5]:  # Limit to first 5 for brevity
                 message += f"  - {req.get('course_code', '')}: {req.get('name', '')}\n"
             message += "\n"
-        
+
         elective_info = remaining_requirements.get("remaining_electives", {})
         elective_count = elective_info.get("count_needed", 0)
         if elective_count > 0:
             message += f"ELECTIVES NEEDED: {elective_count} more required\n\n"
-    
+
     # Available courses section
     message += f"AVAILABLE COURSES ({len(available_courses)} total):\n"
-    for course in available_courses[:50]:  # Limit to first 50 courses for token efficiency
+    for course in available_courses[
+        :50
+    ]:  # Limit to first 50 courses for token efficiency
         message += _format_course_for_prompt(course) + "\n"
-    
+
     if len(available_courses) > 50:
         message += f"\n... and {len(available_courses) - 50} more courses available.\n"
-    
+
     # Instructions section
     message += f"""
 RECOMMENDATION REQUIREMENTS:
@@ -184,7 +195,7 @@ Return a JSON object with this structure:
 
 Provide thoughtful reasoning for each recommendation that considers the student's goals, 
 progress, and the course's role in their academic journey."""
-    
+
     return message
 
 
@@ -213,6 +224,11 @@ def generate_course_recommendations(
         [{"course_code": "...", "title": "...", "credits": 4, "reasoning": "..."}, ...]
         Returns None if API call fails or response is invalid
     """
+    # Check if OpenAI client is initialized
+    if client is None:
+        print("ERROR: OpenAI client not initialized. OPENAI_API_KEY may be missing.")
+        return None
+
     try:
         # Build messages
         system_message = _build_system_message()
@@ -225,9 +241,18 @@ def generate_course_recommendations(
             semester_info,
         )
 
+        print(
+            f"DEBUG: Calling OpenAI API with {len(available_courses)} available courses"
+        )
+
+        # Use a model that supports JSON mode
+        # gpt-4-turbo, gpt-4o, or gpt-3.5-turbo support JSON mode
+        # gpt-4 (base) does NOT support JSON mode
+        model = os.getenv("OPENAI_MODEL", "gpt-4-turbo")
+
         # Call OpenAI API
         response = client.chat.completions.create(
-            model="gpt-4",
+            model=model,
             messages=[
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": user_message},
@@ -239,12 +264,16 @@ def generate_course_recommendations(
         # Extract response content
         response_content = response.choices[0].message.content
         if not response_content:
+            print("ERROR: OpenAI API returned empty response")
             return None
 
         # Parse JSON response
         try:
             response_data = json.loads(response_content)
         except json.JSONDecodeError as e:
+            print(
+                f"ERROR: Failed to parse JSON response. Raw response: {response_content[:500]}"
+            )
             # Try to extract JSON from markdown code blocks if present
             if "```json" in response_content:
                 json_start = response_content.find("```json") + 7
@@ -268,22 +297,37 @@ def generate_course_recommendations(
 
         # Extract courses from response
         courses = response_data.get("courses", [])
-        
+
+        if not courses:
+            print("WARNING: OpenAI API returned no courses in response")
+            return None
+
         # Validate course structure
         validated_courses = []
         for course in courses:
             if isinstance(course, dict) and "course_code" in course:
-                validated_courses.append({
-                    "course_code": course.get("course_code", ""),
-                    "title": course.get("title", ""),
-                    "credits": course.get("credits", 0),
-                    "reasoning": course.get("reasoning", ""),
-                })
-        
-        return validated_courses if validated_courses else None
+                validated_courses.append(
+                    {
+                        "course_code": course.get("course_code", ""),
+                        "title": course.get("title", ""),
+                        "credits": course.get("credits", 0),
+                        "reasoning": course.get("reasoning", ""),
+                    }
+                )
+
+        if not validated_courses:
+            print("WARNING: No valid courses found in OpenAI response")
+            return None
+
+        print(
+            f"DEBUG: Successfully generated {len(validated_courses)} course recommendations"
+        )
+        return validated_courses
 
     except Exception as e:
-        # Log error (in production, use proper logging)
-        print(f"Error generating course recommendations: {e}")
-        return None
+        # Log error with full traceback
+        print(f"ERROR generating course recommendations: {type(e).__name__}: {e}")
+        import traceback
 
+        traceback.print_exc()
+        return None

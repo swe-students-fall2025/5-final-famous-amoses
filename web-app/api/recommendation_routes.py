@@ -94,101 +94,124 @@ def generate_recommendations():
         ]
     }
     """
-    # Get authenticated user
-    user = g.user
+    try:
+        # Get authenticated user
+        user = g.user
 
-    # Get request data
-    data = request.json
-    if not data:
-        return jsonify({"error": "Missing request body"}), 400
+        # Get request data
+        data = request.json
+        if not data:
+            return jsonify({"error": "Missing request body"}), 400
 
-    semester = data.get("semester")
-    if not semester:
-        return jsonify({"error": "Missing required field: semester"}), 400
+        semester = data.get("semester")
+        if not semester:
+            return jsonify({"error": "Missing required field: semester"}), 400
 
-    career_path = data.get("career_path", "")
-    side_interests = data.get("side_interests", [])
-    if not isinstance(side_interests, list):
-        side_interests = []
+        career_path = data.get("career_path", "")
+        side_interests = data.get("side_interests", [])
+        if not isinstance(side_interests, list):
+            side_interests = []
 
-    # Get user data
-    completed_courses = user.get("completed_courses", [])
-    major = user.get("major", "")
-    year = user.get("year", "")
-    interests = user.get("interests", [])
-    name = user.get("name", "Student")
+        # Get user data
+        completed_courses = user.get("completed_courses", [])
+        major = user.get("major", "")
+        year = user.get("year", "")
+        interests = user.get("interests", [])
+        name = user.get("name", "Student")
 
-    # Get all courses from database
-    all_courses = course_filtering.get_all_courses_from_db()
+        # Get all courses from database
+        all_courses = course_filtering.get_all_courses_from_db()
 
-    # Get available courses for the semester
-    available_courses = course_filtering.get_available_courses_for_semester(
-        completed_courses=completed_courses,
-        target_semester=semester,
-        all_courses=all_courses,
-        major_name=major if major else None,
-    )
-
-    if not available_courses:
-        return (
-            jsonify(
-                {
-                    "error": "No available courses found for this semester. "
-                    "You may have completed all available courses or there are no courses "
-                    "offered in this semester."
-                }
-            ),
-            404,
+        # Get available courses for the semester
+        available_courses = course_filtering.get_available_courses_for_semester(
+            completed_courses=completed_courses,
+            target_semester=semester,
+            all_courses=all_courses,
+            major_name=major if major else None,
         )
 
-    # Get major requirements and progress (if major is specified)
-    major_reqs = None
-    major_progress = None
-    remaining_reqs = None
+        if not available_courses:
+            # Provide more helpful error message
+            total_courses = len(all_courses)
+            error_msg = (
+                f"No available courses found for {semester}. "
+                f"Total courses in database: {total_courses}. "
+                f"Completed courses: {len(completed_courses)}. "
+            )
+            if total_courses == 0:
+                error_msg += "Database appears to be empty. Please ensure the database is seeded."
+            else:
+                error_msg += (
+                    "This may be because: (1) all available courses have prerequisites you haven't met, "
+                    "(2) no courses are offered in this semester, or (3) you've completed all available courses."
+                )
 
-    if major:
-        major_reqs = major_requirements.get_major_requirements(major)
-        major_progress = major_requirements.get_major_progress(
-            major, completed_courses, all_courses
+            print(f"WARNING: {error_msg}")
+            return jsonify({"error": error_msg}), 404
+
+        # Get major requirements and progress (if major is specified)
+        major_reqs = None
+        major_progress = None
+        remaining_reqs = None
+
+        if major:
+            major_reqs = major_requirements.get_major_requirements(major)
+            major_progress = major_requirements.get_major_progress(
+                major, completed_courses, all_courses
+            )
+            remaining_reqs = major_requirements.get_remaining_requirements(
+                major, completed_courses, all_courses
+            )
+
+        # Build student info
+        student_info = {
+            "name": name,
+            "major": major,
+            "year": year,
+            "completed_courses": completed_courses,
+            "interests": interests,
+            "career_path": career_path,
+            "side_interests": side_interests,
+        }
+
+        # Build semester info
+        semester_info = {
+            "semester": semester,
+            "target_credits_min": 16,
+            "target_credits_max": 24,
+        }
+
+        # Generate recommendations using LLM
+        recommended_courses = llm_service.generate_course_recommendations(
+            student_info=student_info,
+            available_courses=available_courses,
+            major_requirements=major_reqs,
+            major_progress=major_progress,
+            remaining_requirements=remaining_reqs,
+            semester_info=semester_info,
         )
-        remaining_reqs = major_requirements.get_remaining_requirements(
-            major, completed_courses, all_courses
-        )
 
-    # Build student info
-    student_info = {
-        "name": name,
-        "major": major,
-        "year": year,
-        "completed_courses": completed_courses,
-        "interests": interests,
-        "career_path": career_path,
-        "side_interests": side_interests,
-    }
+        if not recommended_courses:
+            # Check if it's an API key issue
+            error_msg = "Failed to generate recommendations. "
+            if not os.getenv("OPENAI_API_KEY"):
+                error_msg += (
+                    "OPENAI_API_KEY is not set. Please configure it in your .env file."
+                )
+            else:
+                error_msg += (
+                    "Please check the server logs for details and try again later."
+                )
 
-    # Build semester info
-    semester_info = {
-        "semester": semester,
-        "target_credits_min": 16,
-        "target_credits_max": 24,
-    }
+            print(f"ERROR: {error_msg}")
+            return jsonify({"error": error_msg}), 500
 
-    # Generate recommendations using LLM
-    recommended_courses = llm_service.generate_course_recommendations(
-        student_info=student_info,
-        available_courses=available_courses,
-        major_requirements=major_reqs,
-        major_progress=major_progress,
-        remaining_requirements=remaining_reqs,
-        semester_info=semester_info,
-    )
+        return jsonify({"courses": recommended_courses}), 200
 
-    if not recommended_courses:
-        return (
-            jsonify(
-                {"error": "Failed to generate recommendations. Please try again later."}
-            ),
-            500,
-        )
+    except Exception as e:
+        # Catch any unexpected errors and return JSON instead of HTML
+        print(f"ERROR in generate_recommendations: {e}")
+        import traceback
 
-    return jsonify({"courses": recommended_courses}), 200
+        traceback.print_exc()
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500

@@ -11,8 +11,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the app code
 COPY . .
 
+# Make startup script executable
+RUN chmod +x start.sh
+
 # Flask will listen on 5000
 EXPOSE 5000
 
-# Default: run the web app
-CMD ["python", "run.py", "database/seed.py"]
+# Run startup script (seeds DB, then starts Flask)
+CMD ["./start.sh"]
