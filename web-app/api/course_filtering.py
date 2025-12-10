@@ -21,8 +21,20 @@ from api.major_requirements import (
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("MONGO_DB_NAME")
 
-client = MongoClient(MONGO_URI)
-db = client[DB_NAME]
+if not MONGO_URI or not DB_NAME:
+    print(
+        f"WARNING: MONGO_URI or DB_NAME not set. MONGO_URI={MONGO_URI}, DB_NAME={DB_NAME}"
+    )
+    client = None
+    db = None
+else:
+    try:
+        client = MongoClient(MONGO_URI)
+        db = client[DB_NAME]
+    except Exception as e:
+        print(f"ERROR: Failed to connect to MongoDB: {e}")
+        client = None
+        db = None
 
 
 def get_all_courses_from_db() -> List[Dict]:
@@ -32,9 +44,18 @@ def get_all_courses_from_db() -> List[Dict]:
     Returns:
         List of course dictionaries with all course metadata
     """
-    courses_cursor = db.courses.find({})
-    courses = list(courses_cursor)
-    return courses
+    if db is None:
+        print("ERROR: Database connection not available")
+        return []
+
+    try:
+        courses_cursor = db.courses.find({})
+        courses = list(courses_cursor)
+        print(f"DEBUG: Retrieved {len(courses)} courses from database")
+        return courses
+    except Exception as e:
+        print(f"ERROR: Failed to fetch courses from database: {e}")
+        return []
 
 
 def filter_completed_courses(
@@ -339,23 +360,34 @@ def get_available_courses_for_semester(
     if all_courses is None:
         all_courses = get_all_courses_from_db()
 
+    # Debug: Check if database is empty
+    if not all_courses:
+        print(f"WARNING: No courses found in database. Make sure database is seeded.")
+        return []
+
     # Step 1: Filter out completed courses
     available_courses = filter_completed_courses(all_courses, completed_courses)
+    print(f"DEBUG: After filtering completed courses: {len(available_courses)} courses")
 
     # Step 2: Filter by prerequisites
     available_courses = filter_by_prerequisites(
         available_courses, completed_courses, all_courses
     )
+    print(f"DEBUG: After filtering prerequisites: {len(available_courses)} courses")
 
     # Step 3: Filter by semester availability
     available_courses = filter_by_semester_availability(
         available_courses, target_semester
+    )
+    print(
+        f"DEBUG: After filtering semester availability ({target_semester}): {len(available_courses)} courses"
     )
 
     # Step 4: Get math courses for the semester (if major is specified)
     math_courses = []
     if major_name:
         math_courses = _get_math_courses_for_semester(target_semester, major_name)
+        print(f"DEBUG: Found {len(math_courses)} math courses for {major_name}")
 
         # Filter math courses: remove completed ones and check prerequisites
         completed_set = set(completed_courses)
@@ -365,8 +397,10 @@ def get_available_courses_for_semester(
             if course.get("course_code") not in completed_set
             and check_prerequisites_met(course, completed_courses, all_courses)
         ]
+        print(f"DEBUG: After filtering math courses: {len(math_courses)} courses")
 
     # Step 5: Combine DB courses and math courses
     all_available_courses = available_courses + math_courses
+    print(f"DEBUG: Total available courses: {len(all_available_courses)}")
 
     return all_available_courses

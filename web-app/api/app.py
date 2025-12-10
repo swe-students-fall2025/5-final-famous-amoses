@@ -1,23 +1,26 @@
 import os
 
 from dotenv import load_dotenv
-from flask import Flask, render_template
+from flask import Flask, redirect, render_template, request, session, url_for
 
 from .auth_routes import auth
+from .plan_routes import plans
 from .recommendation_routes import recommendations
+from .user_routes import user_profile
+from api.user_model import create_user, verify_user
 
 # Load .env from the root of the project
 load_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))
 
 
 app = Flask(__name__, template_folder="../templates", static_folder="../static")
+app.secret_key = "supersecret"  # needed for session management
+
+# Register blueprints
 app.register_blueprint(auth, url_prefix="/auth")
 app.register_blueprint(recommendations, url_prefix="/api/recommendations")
-
-from flask import Flask, render_template, request, redirect, url_for, session
-from api.user_model import create_user, verify_user
-
-app.secret_key = "supersecret"  # needed for session management
+app.register_blueprint(plans, url_prefix="/api/plans")
+app.register_blueprint(user_profile, url_prefix="/api/user")
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -63,9 +66,13 @@ def home():
 
 @app.route("/fullplan")
 def fullplan():
+    if "user_email" not in session:
+        return redirect(url_for("login_page"))
     return render_template("fullplan.html")
 
 
 @app.route("/editsemester")
 def editsemester():
+    if "user_email" not in session:
+        return redirect(url_for("login_page"))
     return render_template("editsemester.html")

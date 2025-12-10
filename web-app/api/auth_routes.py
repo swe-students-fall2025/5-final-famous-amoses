@@ -2,7 +2,7 @@ import datetime
 import os
 
 import jwt
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 
 from api.user_model import create_user, verify_user
 
@@ -68,5 +68,8 @@ def login():
         SECRET,
         algorithm="HS256",
     )
+
+    # Also set Flask session for web page authentication
+    session["user_email"] = user["email"]
 
     return jsonify({"token": token})
