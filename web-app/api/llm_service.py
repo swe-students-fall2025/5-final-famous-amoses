@@ -198,7 +198,8 @@ CRITICAL RECOMMENDATION PRIORITIES (in order of importance):
 
 IMPORTANT CONSTRAINTS:
 - DO NOT recommend courses the student has already completed: {", ".join(completed_courses) if completed_courses else "None"}
-- DO NOT recommend courses already planned for this semester
+- DO NOT recommend courses already planned for ANY semester (including previous semesters)
+- The available courses list has already been filtered to exclude completed and planned courses
 - Recommend 4-6 courses (aim for {target_credits_min}-{target_credits_max} total credits)
 - All prerequisites are already satisfied (already filtered, but double-check)
 

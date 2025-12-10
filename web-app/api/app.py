@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from flask import Flask, redirect, render_template, request, session, url_for
 
 from .auth_routes import auth
+from .course_routes import courses
 from .plan_routes import plans
 from .recommendation_routes import recommendations
 from .user_routes import user_profile
@@ -18,6 +19,7 @@ app.secret_key = "supersecret"  # needed for session management
 
 # Register blueprints
 app.register_blueprint(auth, url_prefix="/auth")
+app.register_blueprint(courses, url_prefix="/api/courses")
 app.register_blueprint(recommendations, url_prefix="/api/recommendations")
 app.register_blueprint(plans, url_prefix="/api/plans")
 app.register_blueprint(user_profile, url_prefix="/api/user")
