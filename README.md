@@ -6,6 +6,8 @@ An exercise to put to practice software development teamwork, subsystem communic
 
 A course recommender designed to help a Computer Science or Math student at NYU create a four-year plan by using an LLM to suggest courses from the CAS catalog that fulfill their requirements and classes relevant to their interests.
 
+**🚀 Live Deployment:** [http://159.65.190.132:5000/](http://159.65.190.132:5000/)
+
 [![log github events](https://github.com/swe-students-fall2025/5-final-famous-amoses/actions/workflows/event-logger.yml/badge.svg)](https://github.com/swe-students-fall2025/5-final-famous-amoses/actions/workflows/event-logger.yml)
 [![Web App Subsystem CI](https://github.com/swe-students-fall2025/5-final-famous-amoses/actions/workflows/test-api-subsystem.yml/badge.svg)](https://github.com/swe-students-fall2025/5-final-famous-amoses/actions/workflows/test-api-subsystem.yml)
 [![Database Subsystem CI](https://github.com/swe-students-fall2025/5-final-famous-amoses/actions/workflows/test-database-subsystem.yml/badge.svg)](https://github.com/swe-students-fall2025/5-final-famous-amoses/actions/workflows/test-database-subsystem.yml)
@@ -14,11 +16,11 @@ A course recommender designed to help a Computer Science or Math student at NYU 
 
 This project uses the following custom container images, hosted on Docker Hub:
 
-- Web application: [`apoorvib/web-app`](https://hub.docker.com/r/apoorvib/web-app)
+- **Web Application**: [apoorvib/web-app](https://hub.docker.com/r/apoorvib/web-app)
 
 The application also depends on the official MongoDB image:
 
-- Database: [`mongo:7`](https://hub.docker.com/_/mongo)
+- **Database**: [mongo:7](https://hub.docker.com/_/mongo)
 
 ## Team Members
 
