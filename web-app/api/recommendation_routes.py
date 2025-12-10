@@ -120,28 +120,28 @@ def generate_recommendations():
         interests = user.get("interests", [])
         name = user.get("name", "Student")
 
-        # Also exclude courses already planned for this semester
-        current_semester_planned = []
+        # Exclude courses already planned in ANY semester (including previous semesters)
+        # This prevents recommending courses that were already planned/taken in past semesters
+        all_planned_courses = []
         for plan in planned_semesters:
-            if plan.get("semester") == semester:
-                planned_courses = plan.get("courses", [])
-                # Extract course codes from planned courses
-                for course in planned_courses:
-                    if isinstance(course, dict):
-                        course_code = course.get("course_code", "")
-                        if course_code:
-                            current_semester_planned.append(course_code)
-                    elif isinstance(course, str):
-                        # Parse course code from string like "CSCI-UA.0101 Intro to CS (4 credits)"
-                        parts = course.split()
-                        if parts:
-                            current_semester_planned.append(parts[0])
+            planned_courses = plan.get("courses", [])
+            # Extract course codes from planned courses
+            for course in planned_courses:
+                if isinstance(course, dict):
+                    course_code = course.get("course_code", "")
+                    if course_code:
+                        all_planned_courses.append(course_code)
+                elif isinstance(course, str):
+                    # Parse course code from string like "CSCI-UA.0101 Intro to CS (4 credits)"
+                    parts = course.split()
+                    if parts:
+                        all_planned_courses.append(parts[0])
 
-        # Combine completed and planned courses for filtering
-        all_excluded_courses = list(set(completed_courses + current_semester_planned))
+        # Combine completed and ALL planned courses (from all semesters) for filtering
+        all_excluded_courses = list(set(completed_courses + all_planned_courses))
 
         print(
-            f"DEBUG: Excluding {len(completed_courses)} completed courses and {len(current_semester_planned)} planned courses for {semester}"
+            f"DEBUG: Excluding {len(completed_courses)} completed courses and {len(all_planned_courses)} planned courses (from all semesters) for {semester}"
         )
 
         # Get all courses from database

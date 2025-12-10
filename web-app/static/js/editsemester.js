@@ -24,10 +24,14 @@ if (
 // --- DOM references (will be set in DOMContentLoaded) ---
 let careerPath, sideInterest1, sideInterest2, generateBtn, courseList;
 let addManualBtn,
+  courseSearch,
+  courseSuggestions,
   manualCourseCode,
   manualCourseName,
   manualCourseCredits,
   saveBtn;
+let searchTimeout = null;
+let selectedCourse = null;
 
 // Initialize when DOM is ready
 document.addEventListener("DOMContentLoaded", () => {
@@ -43,6 +47,8 @@ document.addEventListener("DOMContentLoaded", () => {
   sideInterest2 = document.getElementById("sideInterest2");
   generateBtn = document.getElementById("generateCourses");
   courseList = document.getElementById("courseList");
+  courseSearch = document.getElementById("courseSearch");
+  courseSuggestions = document.getElementById("courseSuggestions");
   addManualBtn = document.getElementById("addManualCourse");
   manualCourseCode = document.getElementById("manualCourseCode");
   manualCourseName = document.getElementById("manualCourseName");
@@ -59,6 +65,35 @@ document.addEventListener("DOMContentLoaded", () => {
   if (saveBtn) {
     saveBtn.addEventListener("click", saveSemesterPlan);
   }
+
+  // Setup autocomplete for course search
+  if (courseSearch) {
+    courseSearch.addEventListener("input", handleCourseSearch);
+    courseSearch.addEventListener("blur", () => {
+      // Hide suggestions after a short delay to allow click events
+      setTimeout(() => {
+        if (courseSuggestions) courseSuggestions.style.display = "none";
+      }, 200);
+    });
+    courseSearch.addEventListener("focus", () => {
+      // Show suggestions again if there's text
+      if (courseSearch.value.trim().length > 0) {
+        handleCourseSearch({ target: courseSearch });
+      }
+    });
+  }
+
+  // Close suggestions when clicking outside
+  document.addEventListener("click", (e) => {
+    if (
+      courseSearch &&
+      courseSuggestions &&
+      !courseSearch.contains(e.target) &&
+      !courseSuggestions.contains(e.target)
+    ) {
+      courseSuggestions.style.display = "none";
+    }
+  });
 });
 
 // Generate course ideas
@@ -163,6 +198,104 @@ async function generateCourseIdeas() {
   }
 }
 
+// --- Course search autocomplete ---
+async function handleCourseSearch(e) {
+  const query = e.target.value.trim();
+
+  if (!courseSuggestions) return;
+
+  // Clear previous timeout
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
+  }
+
+  // Hide suggestions if query is too short
+  if (query.length < 2) {
+    courseSuggestions.style.display = "none";
+    courseSuggestions.innerHTML = "";
+    selectedCourse = null;
+    clearCourseFields();
+    return;
+  }
+
+  // Debounce search requests
+  searchTimeout = setTimeout(async () => {
+    try {
+      const response = await fetch(
+        `/api/courses/search?q=${encodeURIComponent(query)}&limit=10`
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to search courses");
+      }
+
+      displayCourseSuggestions(data.courses || []);
+    } catch (err) {
+      console.error("Error searching courses:", err);
+      courseSuggestions.style.display = "none";
+    }
+  }, 300);
+}
+
+function displayCourseSuggestions(courses) {
+  if (!courseSuggestions) return;
+
+  if (courses.length === 0) {
+    courseSuggestions.innerHTML =
+      "<div class='suggestion-item'>No courses found</div>";
+    courseSuggestions.style.display = "block";
+    return;
+  }
+
+  courseSuggestions.innerHTML = "";
+  courses.forEach((course) => {
+    const item = document.createElement("div");
+    item.className = "suggestion-item";
+    item.innerHTML = `
+      <strong>${course.course_code}</strong> - ${course.title} (${course.credits} credits)
+    `;
+    item.addEventListener("click", () => {
+      selectCourse(course);
+    });
+    courseSuggestions.appendChild(item);
+  });
+
+  courseSuggestions.style.display = "block";
+}
+
+function selectCourse(course) {
+  selectedCourse = course;
+
+  // Fill in the fields
+  if (manualCourseCode) {
+    manualCourseCode.value = course.course_code;
+  }
+  if (manualCourseName) {
+    manualCourseName.value = course.title;
+  }
+  if (manualCourseCredits) {
+    manualCourseCredits.value = course.credits;
+  }
+
+  // Update search input to show selected course
+  if (courseSearch) {
+    courseSearch.value = `${course.course_code} - ${course.title}`;
+  }
+
+  // Hide suggestions
+  if (courseSuggestions) {
+    courseSuggestions.style.display = "none";
+  }
+}
+
+function clearCourseFields() {
+  if (manualCourseCode) manualCourseCode.value = "";
+  if (manualCourseName) manualCourseName.value = "";
+  if (manualCourseCredits) manualCourseCredits.value = "";
+  selectedCourse = null;
+}
+
 // --- Add manual course ---
 function addManualCourse() {
   if (!manualCourseName || !manualCourseCredits || !courseList) {
@@ -174,8 +307,9 @@ function addManualCourse() {
   const name = manualCourseName.value.trim();
   const credits = manualCourseCredits.value.trim();
 
-  if (!name || !credits) {
-    alert("Please enter both course name and credits.");
+  if (!code || !name || !credits) {
+    alert("Please search and select a course first.");
+    if (courseSearch) courseSearch.focus();
     return;
   }
 
@@ -194,9 +328,8 @@ function addManualCourse() {
   courseList.appendChild(li);
 
   // Clear inputs
-  if (manualCourseCode) manualCourseCode.value = "";
-  manualCourseName.value = "";
-  manualCourseCredits.value = "";
+  if (courseSearch) courseSearch.value = "";
+  clearCourseFields();
 }
 
 // --- Save semester plan ---
